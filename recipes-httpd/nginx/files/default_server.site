@@ -1,0 +1,96 @@
+#server {
+#    listen  127.0.0.1:8080;
+#    location ~ /pub/(\w+)$ {
+#        nchan_publisher;
+#        nchan_channel_group my_app_group;
+#        nchan_channel_id $1;
+#    }
+#}
+
+server {
+#    listen 80 default_server;
+#    listen [::]:80 default_server;
+#    listen 443 ssl;
+
+    root /var/www/localhost/html;
+
+    index index.html index.htm;
+
+    server_name _;
+
+    # redirect server error pages to the static page /50x.html
+    error_page 500 502 503 504 /50x.html;
+
+    location /status {
+        nchan_stub_status;
+    }
+
+    location = /upstream/auth {
+        proxy_pass http://127.0.0.1:9200/auth;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Subscriber-Type $nchan_subscriber_type;
+        proxy_set_header X-Publisher-Type $nchan_publisher_type;
+        proxy_set_header X-Prev-Message-Id $nchan_prev_message_id;
+        proxy_set_header X-Channel-Id $nchan_channel_id;
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Authorization $arg_authorization;
+        proxy_set_header X-Request-Method $request_method;
+    }
+
+    location = /upstream/pub {
+       proxy_pass http://127.0.0.1:9200/pub;
+       proxy_set_header X-Publisher-Type $nchan_publisher_type;
+       proxy_set_header X-Prev-Message-Id $nchan_prev_message_id;
+       proxy_set_header X-Channel-Id $nchan_channel_id;
+       proxy_set_header X-Original-URI $request_uri;
+    } 
+
+    location = /upstream/unsub {
+        proxy_pass http://127.0.0.1:9200/unsub;
+        proxy_ignore_client_abort on;
+        proxy_set_header X-Subscriber-Type $nchan_subscriber_type;
+        proxy_set_header X-Channel-Id $nchan_channel_id;
+        proxy_set_header X-Original-URI $request_uri;
+    } 
+
+    location = /upstream/sub {
+       proxy_pass http://127.0.0.1:9200/sub;
+       proxy_set_header X-Subscriber-Type $nchan_subscriber_type;
+       proxy_set_header X-Message-Id $nchan_message_id;
+       proxy_set_header X-Channel-Id $nchan_channel_id;
+       proxy_set_header X-Original-URI $request_uri;
+    }
+
+# Per inserire dati
+# curl -v -w'\n' http://aib-dev-03:80/v1/cs/tango/ken.elettra.trieste.it:2000/dom/fam/mem/att --data "test message 1"
+# Lettura con longpoll
+# curl -v -w'\n' http://aib-dev-03:80/v1/cs/tango/ken.elettra.trieste.it:2000/dom/fam/mem/att -H "If-Modified-Since: $LAST_MODIFIED" -H "If-None-Match: $ETAG"
+# Avviare un server HTTP in Python
+# python3 server.py 9200
+
+   location ~* /v1/cs/(\w+)/([\w\.-:]+)/([\w\.-]+)/([\w\.-]+)/([\w\.-]+)/([\w\.-]+)$ {
+      nchan_subscriber;
+      nchan_publisher http;
+      nchan_channel_id v1/cs/$1/$2/$3/$4/$5/$6;
+      nchan_subscriber_first_message oldest;
+      nchan_message_timeout 0;
+     nchan_group_max_messages_disk 0;
+      nchan_authorize_request /upstream/auth;
+      nchan_subscribe_request /upstream/sub;
+      nchan_unsubscribe_request /upstream/unsub;
+      nchan_publisher_upstream_request /upstream/pub;
+
+#     nchan_subscriber_last_message_id $http_last_event_id $arg_last_event_id;
+#     nchan_websocket_client_heartbeat none;
+#     nchan_websocket_ping_interval 0;
+#     nchan_shared_memory_size 128M;
+#     nchan_channel_group test;
+#     nchan_channel_group_accounting off;
+#     nchan_group_location get set delete;
+#     nchan_access_control_allow_credentials on;
+#     nchan_access_control_allow_origin origin;
+    }
+
+}

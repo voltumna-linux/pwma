@@ -1,0 +1,11 @@
+MACHINE="kvm-nehalem"
+nice bitbake -k canoned-sde || return
+
+# MACHINE="kvm-nehalem"
+# nice bitbake -k canoned-sre || return
+
+# MACHINE="qemu-corei7-64"
+# SDKMACHINE="x86_64"
+# nice bitbake -k canoned-sdk -c populate_sdk || return
+# SDKMACHINE="x86_64-mingw32"
+# nice bitbake -k canoned-sdk -c populate_sdk || return
